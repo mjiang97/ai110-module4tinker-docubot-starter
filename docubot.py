@@ -22,8 +22,11 @@ class DocuBot:
         # Load documents into memory
         self.documents = self.load_documents()  # List of (filename, text)
 
-        # Build a retrieval index (implemented in Phase 1)
-        self.index = self.build_index(self.documents)
+        # Split documents into paragraph-level chunks for retrieval
+        self.chunks = self.chunk_documents(self.documents)  # List of (filename, paragraph)
+
+        # Build a retrieval index over chunks
+        self.index = self.build_index(self.chunks)
 
     # -----------------------------------------------------------
     # Document Loading
@@ -43,6 +46,24 @@ class DocuBot:
                 filename = os.path.basename(path)
                 docs.append((filename, text))
         return docs
+
+    # -----------------------------------------------------------
+    # Chunking
+    # -----------------------------------------------------------
+
+    def chunk_documents(self, documents):
+        """
+        Splits each document into paragraph-level chunks by splitting on
+        blank lines (double newlines). Empty paragraphs are discarded.
+        Returns a flat list of (filename, paragraph) tuples.
+        """
+        chunks = []
+        for filename, text in documents:
+            for paragraph in text.split("\n\n"):
+                paragraph = paragraph.strip()
+                if paragraph:
+                    chunks.append((filename, paragraph))
+        return chunks
 
     # -----------------------------------------------------------
     # Index Construction (Phase 1)
@@ -100,12 +121,12 @@ class DocuBot:
         Return a list of (filename, text) sorted by score descending.
         """
         results = []
-        for filename, text in self.documents:
-            score = self.score_document(query, text)
+        for filename, paragraph in self.chunks:
+            score = self.score_document(query, paragraph)
             if score > 0:
-                results.append((score, filename, text))
+                results.append((score, filename, paragraph))
         results.sort(key=lambda x: x[0], reverse=True)
-        return [(filename, text) for _, filename, text in results[:top_k]]
+        return [(filename, paragraph) for _, filename, paragraph in results[:top_k]]
 
     # -----------------------------------------------------------
     # Answering Modes
